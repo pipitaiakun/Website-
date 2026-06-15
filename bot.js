@@ -26,13 +26,14 @@ let config = {
   auth: process.env.MC_AUTH || "offline"
 };
 
-// Database
+// Database - LowDB v7 Fix
 const adapter = new JSONFile('db.json');
-const db = new Low(adapter);
+const defaultData = { users: [] };
+const db = new Low(adapter, defaultData);
 
 async function initDB() {
   await db.read();
-  db.data ||= { users: [] };
+  db.data ||= defaultData;
   await db.write();
   console.log("✅ Database siap");
 }
@@ -51,7 +52,7 @@ io.use((socket, next) => {
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 
-// API
+// API Routes
 app.post('/api/register', async (req, res) => {
   const { username, password } = req.body;
   await db.read();
@@ -75,7 +76,7 @@ app.post('/api/login', async (req, res) => {
   res.json({ token, username: user.username, activated: user.activated });
 });
 
-// Socket
+// Socket Events
 io.on('connection', (socket) => {
   const isAdmin = socket.user.username.toLowerCase() === 'admin';
   socket.emit('userInfo', { username: socket.user.username, isAdmin });
@@ -142,7 +143,12 @@ function createBot() {
   });
 }
 
+// Start Server
 initDB().then(() => {
   const PORT = process.env.PORT || 3000;
-  server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+  });
+}).catch(err => {
+  console.error("❌ Error starting server:", err);
 });
