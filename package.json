@@ -1,0 +1,20 @@
+{
+  "name": "nexusbot-minecraft",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "node bot.js"
+  },
+  "dependencies": {
+    "mineflayer": "^4.26.0",
+    "express": "^4.19.2",
+    "socket.io": "^4.8.1",
+    "bcrypt": "^5.1.1",
+    "jsonwebtoken": "^9.0.2",
+    "lowdb": "^7.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

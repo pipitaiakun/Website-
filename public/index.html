@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NexusBot</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="/socket.io/socket.io.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .glass { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(16px); border: 1px solid rgba(34, 197, 94, 0.2); }
+    .neon-green { text-shadow: 0 0 10px #22c55e; }
+    .log-line { word-break: break-all; white-space: pre-wrap; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+  <!-- Auth -->
+  <div id="authScreen" class="min-h-screen flex items-center justify-center p-4">
+    <div class="glass rounded-3xl p-8 w-full max-w-md">
+      <h1 class="text-5xl font-bold text-center neon-green mb-2">NEXUSBOT</h1>
+      <p class="text-center text-slate-400 mb-8">Minecraft Bot Panel</p>
+      <div class="flex mb-6">
+        <button onclick="showTab(0)" class="flex-1 py-3 border-b-2 border-green-500 font-semibold">Login</button>
+        <button onclick="showTab(1)" class="flex-1 py-3 text-slate-400">Register</button>
+      </div>
+      <div id="loginForm">
+        <input id="loginUsername" placeholder="Username" class="w-full mb-4 bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4">
+        <input id="loginPassword" type="password" placeholder="Password" class="w-full mb-6 bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4">
+        <button onclick="login()" class="w-full bg-green-500 text-black py-4 rounded-2xl font-bold">LOGIN</button>
+      </div>
+      <div id="registerForm" class="hidden">
+        <input id="regUsername" placeholder="Username" class="w-full mb-4 bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4">
+        <input id="regPassword" type="password" placeholder="Password" class="w-full mb-6 bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4">
+        <button onclick="register()" class="w-full bg-blue-600 py-4 rounded-2xl font-bold">REGISTER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboardScreen" class="hidden p-6 max-w-7xl mx-auto">
+    <div class="flex justify-between mb-8">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 bg-green-500 rounded-2xl flex items-center justify-center text-4xl">⚒️</div>
+        <div>
+          <h1 class="text-4xl font-bold neon-green">NEXUSBOT</h1>
+          <p>Halo, <span id="welcomeUser"></span></p>
+        </div>
+      </div>
+      <div>
+        <button onclick="showAdminPanel()" id="adminBtn" class="hidden px-5 py-2 bg-yellow-500 text-black rounded-xl mr-3">👑 Admin</button>
+        <button onclick="logout()" class="px-5 py-2 bg-red-500/20 rounded-xl">Logout</button>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div class="lg:col-span-8 glass rounded-3xl p-8">
+        <h2 class="text-2xl font-semibold mb-6">Bot Control</h2>
+        <div class="grid grid-cols-2 gap-4 mb-8">
+          <button onclick="startBot()" class="bg-green-500 text-black font-bold py-6 rounded-2xl">▶ START BOT</button>
+          <button onclick="stopBot()" class="bg-red-500 font-bold py-6 rounded-2xl">⏹ STOP BOT</button>
+        </div>
+        <button onclick="takeScreenshot()" class="w-full bg-purple-600 py-4 rounded-2xl mb-6">📸 Screenshot Bot</button>
+        <input id="chatInput" placeholder="Chat / Command" class="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4 mb-4" onkeypress="if(event.key==='Enter') sendChat()">
+        <div id="logs" class="h-96 bg-slate-900 border border-slate-700 rounded-3xl p-5 overflow-auto font-mono text-sm"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- WhatsApp Modal -->
+  <div id="paymentModal" class="hidden fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+    <div class="glass rounded-3xl p-8 max-w-md w-full mx-4">
+      <h2 class="text-2xl font-bold mb-4">Aktivasi Diperlukan</h2>
+      <a href="https://wa.me/628139943781?text=Halo%20admin,%20mohon%20kode%20aktivasi%20NexusBot" target="_blank" class="block bg-green-500 text-black text-center py-5 rounded-2xl font-bold mb-6">💬 Chat WhatsApp Admin</a>
+      <input id="activationCode" class="w-full bg-slate-900 border border-slate-700 rounded-2xl px-5 py-4 mb-4 text-center" placeholder="Kode Aktivasi">
+      <button onclick="submitActivation()" class="w-full bg-green-500 py-4 rounded-2xl font-bold">Aktivasi</button>
+    </div>
+  </div>
+
+  <!-- Admin Panel -->
+  <div id="adminPanel" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center z-50">
+    <div class="glass rounded-3xl p-8 w-full max-w-lg">
+      <h2 class="text-3xl font-bold mb-6">👑 Admin Panel</h2>
+      <button onclick="generateCode()" class="w-full bg-yellow-500 text-black py-5 rounded-2xl font-bold mb-6">Generate Kode Baru</button>
+      <div id="newCodeDisplay" class="hidden bg-slate-900 p-6 rounded-2xl text-center text-2xl font-mono mb-6"></div>
+      <button onclick="closeAdminPanel()" class="w-full py-3 text-slate-400">Tutup</button>
+    </div>
+  </div>
+
+  <script>
+    let socket = null;
+
+    function showTab(n) {
+      document.getElementById('loginForm').classList.toggle('hidden', n !== 0);
+      document.getElementById('registerForm').classList.toggle('hidden', n !== 1);
+    }
+
+    async function register() {
+      const username = document.getElementById('regUsername').value.trim();
+      const password = document.getElementById('regPassword').value;
+      if (!username || !password) return alert("Lengkapi data");
+      const res = await fetch('/api/register', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username, password}) });
+      const data = await res.json();
+      alert(data.success ? "Registrasi berhasil!" : data.error);
+    }
+
+    async function login() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const res = await fetch('/api/login', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({username, password}) });
+      const data = await res.json();
+      if (data.token) {
+        localStorage.setItem('token', data.token);
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('dashboardScreen').classList.remove('hidden');
+        document.getElementById('welcomeUser').textContent = username;
+        connectSocket(data.token);
+      } else alert(data.error);
+    }
+
+    function connectSocket(token) {
+      socket = io({ auth: { token } });
+      socket.on('userInfo', (data) => {
+        if (data.isAdmin) document.getElementById('adminBtn').classList.remove('hidden');
+      });
+      socket.on('chat', (msg) => {
+        const logs = document.getElementById('logs');
+        logs.innerHTML += `<div class="log-line">${msg}</div>`;
+        logs.scrollTop = logs.scrollHeight;
+      });
+      socket.on('needActivation', () => document.getElementById('paymentModal').classList.remove('hidden'));
+      socket.on('activationSuccess', () => {
+        alert("✅ Aktivasi berhasil!");
+        document.getElementById('paymentModal').classList.add('hidden');
+      });
+      socket.on('newCode', (code) => {
+        document.getElementById('newCodeDisplay').textContent = code;
+        document.getElementById('newCodeDisplay').classList.remove('hidden');
+      });
+    }
+
+    function startBot() { socket?.emit('startBot'); }
+    function stopBot() { socket?.emit('stopBot'); }
+    function sendChat() {
+      const input = document.getElementById('chatInput');
+      if (input.value) socket?.emit('sendChat', input.value);
+      input.value = '';
+    }
+    function takeScreenshot() { socket?.emit('takeScreenshot'); }
+    function submitActivation() {
+      const code = document.getElementById('activationCode').value.trim();
+      if (code) socket?.emit('submitActivation', code);
+    }
+    function showAdminPanel() { document.getElementById('adminPanel').classList.remove('hidden'); }
+    function closeAdminPanel() { document.getElementById('adminPanel').classList.add('hidden'); }
+    function generateCode() { socket?.emit('generateActivationCode'); }
+    function logout() { localStorage.removeItem('token'); location.reload(); }
+
+    window.onload = () => {
+      if (localStorage.getItem('token')) {
+        document.getElementById('authScreen').classList.add('hidden');
+        document.getElementById('dashboardScreen').classList.remove('hidden');
+      }
+    };
+  </script>
+</body>
+</html>
